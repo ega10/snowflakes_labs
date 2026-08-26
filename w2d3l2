@@ -1,0 +1,31 @@
+CREATE TABLE DimCustomer_SCD (
+  CustomerKey INT PRIMARY KEY AUTO_INCREMENT,
+  CustomerID INT,
+  CustomerName VARCHAR(100),
+  City VARCHAR(50),
+  StartDate DATE,
+  EndDate DATE,
+  CurrentFlag CHAR(1)
+);
+INSERT INTO DimCustomer_SCD
+(CustomerID, CustomerName, City, StartDate, EndDate, CurrentFlag)
+VALUES (101,'John','Delhi','2022-01-01',NULL,'Y');
+UPDATE DimCustomer_SCD
+SET City='Mumbai'
+WHERE CustomerID=101;
+
+UPDATE DimCustomer_SCD
+SET EndDate='2023-03-01', CurrentFlag='N'
+WHERE CustomerID=101 AND CurrentFlag='Y';
+
+INSERT INTO DimCustomer_SCD
+(CustomerID, CustomerName, City, StartDate, EndDate, CurrentFlag)
+VALUES (101,'John','Mumbai','2023-03-02',NULL,'Y');
+
+ALTER TABLE DimCustomer_SCD ADD COLUMN PrevCity VARCHAR(50);
+
+UPDATE DimCustomer_SCD
+SET PrevCity='Delhi', City='Bangalore'
+WHERE CustomerID=101 AND CurrentFlag='Y';
+
+SELECT * FROM DimCustomer_SCD ORDER BY CustomerKey;
