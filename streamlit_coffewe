@@ -1,0 +1,162 @@
+import streamlit as st
+import pandas as pd
+from snowflake.snowpark.context import get_active_session
+
+# ----------------------------------
+# Snowflake Session
+# ----------------------------------
+session = get_active_session()
+
+# ----------------------------------
+# Load Data
+# ----------------------------------
+query = """
+SELECT
+    SALE_DATE,
+    STORE,
+    PRODUCT,
+    QUANTITY,
+    PRICE,
+    CUSTOMER_AGE,
+    QUANTITY * PRICE AS REVENUE
+FROM COFFEE_LAB.DATA.SALES
+"""
+
+df = session.sql(query).to_pandas()
+
+# ----------------------------------
+# Page Config
+# ----------------------------------
+st.set_page_config(
+    page_title="Coffee Sales Dashboard",
+    layout="wide"
+)
+
+st.title("☕ Coffee Sales Dashboard")
+
+# ----------------------------------
+# Filters
+# ----------------------------------
+st.sidebar.header("Filters")
+
+store_filter = st.sidebar.multiselect(
+    "Select Store",
+    options=df["STORE"].unique(),
+    default=df["STORE"].unique()
+)
+
+product_filter = st.sidebar.multiselect(
+    "Select Product",
+    options=df["PRODUCT"].unique(),
+    default=df["PRODUCT"].unique()
+)
+
+filtered_df = df[
+    (df["STORE"].isin(store_filter)) &
+    (df["PRODUCT"].isin(product_filter))
+]
+
+# ----------------------------------
+# KPIs
+# ----------------------------------
+total_revenue = filtered_df["REVENUE"].sum()
+total_transactions = len(filtered_df)
+avg_age = round(filtered_df["CUSTOMER_AGE"].mean(), 1)
+total_qty = filtered_df["QUANTITY"].sum()
+
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("Total Revenue", f"${total_revenue:,.2f}")
+col2.metric("Transactions", total_transactions)
+col3.metric("Average Customer Age", avg_age)
+col4.metric("Quantity Sold", total_qty)
+
+st.divider()
+
+# ----------------------------------
+# Revenue By Product
+# ----------------------------------
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("Revenue by Product")
+
+    product_rev = (
+        filtered_df.groupby("PRODUCT")["REVENUE"]
+        .sum()
+        .sort_values(ascending=False)
+    )
+
+    st.bar_chart(product_rev)
+
+with col2:
+    st.subheader("Revenue by Store")
+
+    store_rev = (
+        filtered_df.groupby("STORE")["REVENUE"]
+        .sum()
+        .sort_values(ascending=False)
+    )
+
+    st.bar_chart(store_rev)
+
+# ----------------------------------
+# Daily Sales Trend
+# ----------------------------------
+st.subheader("Daily Sales Trend")
+
+daily_sales = (
+    filtered_df.groupby("SALE_DATE")["REVENUE"]
+    .sum()
+    .reset_index()
+)
+
+daily_sales = daily_sales.sort_values("SALE_DATE")
+
+st.line_chart(
+    daily_sales,
+    x="SALE_DATE",
+    y="REVENUE"
+)
+
+# ----------------------------------
+# Transactions By Store
+# ----------------------------------
+st.subheader("Transactions by Store")
+
+transactions = (
+    filtered_df.groupby("STORE")
+    .size()
+    .reset_index(name="TRANSACTIONS")
+)
+
+st.bar_chart(
+    transactions,
+    x="STORE",
+    y="TRANSACTIONS"
+)
+
+# ----------------------------------
+# Detailed Data
+# ----------------------------------
+st.subheader("Sales Details")
+
+st.dataframe(
+    filtered_df,
+    use_container_width=True
+)
+
+# ----------------------------------
+# Best Selling Day
+# ----------------------------------
+best_day = (
+    filtered_df.groupby("SALE_DATE")["REVENUE"]
+    .sum()
+    .reset_index()
+    .sort_values("REVENUE", ascending=False)
+    .head(1)
+)
+
+st.subheader("🏆 Best Selling Day")
+
+st.dataframe(best_day, use_container_width=True)
